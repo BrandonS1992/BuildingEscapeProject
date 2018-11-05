@@ -1,6 +1,7 @@
 // Brandon Santangelo 2018
 
 #include "Grabber.h"
+#include "BuildingEscapeGameMode.h" // Needed
 #include "BuildingEscape.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
@@ -62,14 +63,26 @@ void UGrabber::Grab() {
 	UE_LOG(LogTemp, Warning, TEXT("Grab pressed"))
 
 		/// LINE TRACE to see if reaching any actors with physics body collision chanel set
-		GetFirstPhysicsBodyInReach();
-		/// If collision detected then attach physics handle.
-			// TODO attach physics handle
+		auto HitResult = GetFirstPhysicsBodyInReach();
+		auto ComponentToGrab = HitResult.GetComponent();
+		auto ActorHit = HitResult.GetActor();
+
+	/// If collision detected then attach physics handle.
+	if (ActorHit)
+	{
+	// TODO attach physics handle
+		PhysicsHandle->GrabComponent(
+			ComponentToGrab,
+			NAME_None,
+			ComponentToGrab->GetOwner()->GetActorLocation(),
+			true // Allows rotation
+			);
+	}
 }
 
 void UGrabber::Release() {
 	UE_LOG(LogTemp, Warning, TEXT("Grab released"))
-	// TODO release physics handle
+	PhysicsHandle->ReleaseComponent();
 }
 
 
@@ -78,9 +91,23 @@ void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// if physics handle is attached
-		// move object being held
+		/// Get player viewpoint
+	FVector PlayerViewPointLocation;
+	FRotator PlayerViewPointRotation;
+	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(
+		OUT PlayerViewPointLocation,
+		OUT PlayerViewPointRotation
+	);
 
+
+	FVector LineTraceEnd = PlayerViewPointLocation + PlayerViewPointRotation.Vector() * Reach;
+
+	// if physics handle is attached
+	if (PhysicsHandle->GrabbedComponent)
+		{
+		// move object being held
+		PhysicsHandle->SetTargetLocation(LineTraceEnd);
+		}
 }
 
 FHitResult UGrabber::GetFirstPhysicsBodyInReach() const
@@ -114,6 +141,6 @@ FHitResult UGrabber::GetFirstPhysicsBodyInReach() const
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Line trace hit: %s"), *(ActorHit->GetName()))
 	}
-	return FHitResult();
+	return Hit;
 }
 
